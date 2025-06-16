@@ -2,10 +2,28 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Answer Digital DevOps Academy
 
 Parameters:
-      VpcCIDR:
-        Description: Please enter the IP range (CIDR notation) for this VPC
-        Type: String
-        Default: 10.10.10.0/20
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.10.10.0/20
+    MinLength: 9
+    MaxLength: 18
+    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+  Subnet1CIDR:
+    Description: CIDR block for Subnet 1
+    Type: String
+    Default: 10.10.10.0/24
+
+  Subnet2CIDR:
+    Description: CIDR block for Subnet 2
+    Type: String
+    Default: 10.10.11.0/24
+
+  DeployedByTag:
+    Description: Value for the 'deployed-by' tag on each resource
+    Type: String
+    Default: Muaaz
 
 Resources:
   VPC:
@@ -16,34 +34,39 @@ Resources:
       EnableDnsSupport: true
       Tags:
         - Key: "Name"
-          Value: "VPC" 
+          Value: "VPC"
         - Key: "managed-by"
           Value: "CloudFormation"
         - Key: "deployed-by"
-          Value: "Muaaz"  
+          Value: !Ref DeployedByTag
 
   Subnet1:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
-      CidrBlock: "10.10.10.0/24"
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref Subnet1CIDR
       MapPublicIpOnLaunch: true
       Tags:
         - Key: "managed-by"
           Value: "CloudFormation"
         - Key: "deployed-by"
-          Value: "Muaaz"
+          Value: !Ref DeployedByTag
 
   Subnet2:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
-      CidrBlock: "10.10.11.0/24"
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref Subnet2CIDR
       MapPublicIpOnLaunch: true
       Tags:
         - Key: "managed-by"
           Value: "CloudFormation"
         - Key: "deployed-by"
-          Value: "Muaaz"
+          Value: !Ref DeployedByTag
+
+Outputs:
+  VPC:
+    Description: A reference to the created VPC
+    Value: !Ref VPC
