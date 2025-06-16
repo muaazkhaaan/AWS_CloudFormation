@@ -1,0 +1,170 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Answer Digital DevOps Academy
+
+Parameters:
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.10.10.0/20
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}\/([0-9]|[1-2][0-9]|3[0-2])$
+    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+  Subnet1CIDR:
+    Description: CIDR block for Subnet 1
+    Type: String
+    Default: 10.10.10.0/24
+
+  Subnet2CIDR:
+    Description: CIDR block for Subnet 2
+    Type: String
+    Default: 10.10.11.0/24
+
+  DeployedByTag:
+    Description: Value for the 'deployed-by' tag on each resource
+    Type: String
+    Default: Muaaz
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsHostnames: false
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: VPC
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref Subnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref Subnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
+
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: doa-123456
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+
+  WebsiteHostingBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: s3:GetObject
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref S3Bucket
+                - '/*'
+
+  primer:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: python_area_muaaz
+      Runtime: python3.13
+      Role: !GetAtt LambdaRole.Arn
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: >
+          import json
+
+          def calculate_area(length, width):
+              return length * width
+
+          def lambda_handler(event, context):
+              length = event['length']
+              width = event['width']
+              area = calculate_area(length, width)
+              print(f"The area is {area}")
+              return {
+                  "statusCode": 200,
+                  "body": json.dumps({"area": area})
+              }
+      Tags:
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaRoleMuaaz
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: LambdaBasicExecution
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+Outputs:
+  VPC:
+    Description: A reference to the created VPC
+    Value: !Ref VPC
+
+  SubnetIDs:
+    Description: Comma-separated list of Subnet IDs
+    Value: !Join [", ", [!Ref Subnet1, !Ref Subnet2]]
+
+  WebsiteURL:
+    Description: URL of the static website hosted on S3
+    Value: !GetAtt S3Bucket.WebsiteURL
+
+  LambdaFunctionName:
+    Description: The name of the Lambda function
+    Value: !Ref primer
