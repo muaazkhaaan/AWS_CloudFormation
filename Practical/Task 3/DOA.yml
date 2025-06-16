@@ -8,6 +8,7 @@ Parameters:
     Default: 10.10.10.0/20
     MinLength: 9
     MaxLength: 18
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}\/([0-9]|[1-2][0-9]|3[0-2])$
     ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
 
   Subnet1CIDR:
@@ -70,3 +71,7 @@ Outputs:
   VPC:
     Description: A reference to the created VPC
     Value: !Ref VPC
+
+  SubnetIDs:
+    Description: Comma-separated list of Subnet IDs
+    Value: !Join [ ", ", [ !Ref Subnet1, !Ref Subnet2 ] ]
