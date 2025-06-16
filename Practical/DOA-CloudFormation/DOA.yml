@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Answer Digital DevOps Academy
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "10.10.10.0/20"
+      EnableDnsHostnames: false
+      EnableDnsSupport: true
+      Tags:
+        - Key: "Name"
+          Value: "VPC" 
+        - Key: "managed-by"
+          Value: "CloudFormation"
+        - Key: "deployed-by"
+          Value: "Muaaz"  
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: "10.10.10.0/24"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: "managed-by"
+          Value: "CloudFormation"
+        - Key: "deployed-by"
+          Value: "Muaaz"
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: "10.10.11.0/24"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: "managed-by"
+          Value: "CloudFormation"
+        - Key: "deployed-by"
+          Value: "Muaaz"
