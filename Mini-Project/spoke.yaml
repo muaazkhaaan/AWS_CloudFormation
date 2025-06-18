@@ -164,13 +164,47 @@ Resources:
       Roles:
         - !Ref SpokeEC2Role
 
+  SpokeInstanceSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow traffic from the load balancer
+      VpcId: !Ref SpokeVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref SpokeLoadBalancerSG
+      Tags:
+        - Key: Name
+          Value: !Sub "${SpokeName}-Instance-SG"
+        - Key: managed-by
+          Value: CloudFormation
+
+  SpokeLoadBalancerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow inbound HTTP (80) from Answer Office IP
+      VpcId: !Ref SpokeVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 203.0.113.0/24  # Replace with real Answer office IP
+      Tags:
+        - Key: Name
+          Value: !Sub "${SpokeName}-LB-SG"
+        - Key: managed-by
+          Value: CloudFormation
+
   SpokeInstance1:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro
       SubnetId: !Ref Subnet1
-      ImageId: ami-0b9dd1f70861d4721  # Amazon Linux 2 AMI
+      ImageId: ami-0b9dd1f70861d4721
       IamInstanceProfile: !Ref SpokeInstanceProfile
+      SecurityGroupIds:
+        - !Ref SpokeInstanceSG
       Tags:
         - Key: Name
           Value: !Sub "${SpokeName}-Instance1"
@@ -186,6 +220,8 @@ Resources:
       SubnetId: !Ref Subnet2
       ImageId: ami-0b9dd1f70861d4721
       IamInstanceProfile: !Ref SpokeInstanceProfile
+      SecurityGroupIds:
+        - !Ref SpokeInstanceSG
       Tags:
         - Key: Name
           Value: !Sub "${SpokeName}-Instance2"
@@ -193,6 +229,52 @@ Resources:
           Value: CloudFormation
         - Key: deployed-by
           Value: !Ref DeployedByTag
+
+  SpokeLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "${SpokeName}-LB"
+      Subnets:
+        - !Ref Subnet1
+        - !Ref Subnet2
+      SecurityGroups:
+        - !Ref SpokeLoadBalancerSG
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '60'
+      Tags:
+        - Key: Name
+          Value: !Sub "${SpokeName}-ALB"
+        - Key: managed-by
+          Value: CloudFormation
+
+  SpokeTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "${SpokeName}-TG"
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref SpokeVPC
+      TargetType: instance
+      HealthCheckPath: /
+      Matcher:
+        HttpCode: 200
+      Targets:
+        - Id: !Ref SpokeInstance1
+          Port: 80
+        - Id: !Ref SpokeInstance2
+          Port: 80
+
+  SpokeListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref SpokeLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref SpokeTargetGroup
 
   VPCPeeringConnection:
     Type: AWS::EC2::VPCPeeringConnection

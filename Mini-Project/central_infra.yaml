@@ -300,7 +300,7 @@ Outputs:
     Description: The name of the Lambda function
     Value: !Ref thing1
 
-  LambdaFunctionName:
+  LambdaFunction2Name:
     Description: The name of the Lambda function
     Value: !Ref thing2
 
