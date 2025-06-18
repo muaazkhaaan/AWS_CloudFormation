@@ -41,6 +41,31 @@ Resources:
         - Key: deployed-by
           Value: !Ref DeployedByTag
 
+  CentralSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: central-sg
+      GroupDescription: Allow inbound access only from peered spokes
+      VpcId: !Ref VPC
+
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 10.10.10.0/24  # Spoke 1
+        - IpProtocol: -1
+          CidrIp: 10.10.11.0/24  # Spoke 2
+
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0  # Allow all outbound traffic
+
+      Tags:
+        - Key: Name
+          Value: CentralSecurityGroup
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
+ 
   Subnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -244,6 +269,20 @@ Resources:
       RestApiId: !Ref ApiGateway
       StageName: prod
 
+  DynamoDBTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      TableName: "thing-dbtable"
+      AttributeDefinitions:
+        - AttributeName: "id"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "id"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
 Outputs:
   VPC:
     Description: A reference to the created VPC
@@ -272,3 +311,7 @@ Outputs:
   Thing2Endpoint:
     Description: API endpoint for thing2
     Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/thing2
+
+  DynamoDBTableName:
+    Description: Name of the DynamoDB table
+    Value: !Ref DynamoDBTable
