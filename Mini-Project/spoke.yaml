@@ -92,3 +92,41 @@ Resources:
     Properties:
       VpcId: !Ref SpokeVPC
       InternetGatewayId: !Ref SpokeInternetGateway
+
+  SpokeRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref SpokeVPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-rt"
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
+
+  DefaultRouteToInternet:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref SpokeRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref SpokeInternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet1
+      RouteTableId: !Ref SpokeRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet2
+      RouteTableId: !Ref SpokeRouteTable
+
+
+Outputs:
+  VPCId:
+    Value: !Ref SpokeVPC
+    Description: Spoke VPC ID
