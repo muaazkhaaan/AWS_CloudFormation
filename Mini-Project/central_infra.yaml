@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Answer Digital DevOps Academy
+Description: Central Infrastructure
 
 Parameters:
   VpcCIDR:

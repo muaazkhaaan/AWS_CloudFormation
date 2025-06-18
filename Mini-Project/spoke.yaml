@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Spoke stack that connects to central infrastructure
+
+Parameters:
+  VpcCIDR:
+    Description: CIDR block for the Spoke VPC
+    Type: String
+    Default: 10.20.0.0/20
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}\/([0-9]|[1-2][0-9]|3[0-2])$
+    ConstraintDescription: Must be a valid IP CIDR block like x.x.x.x/x
+
+  Subnet1CIDR:
+    Description: CIDR block for the first subnet
+    Type: String
+    Default: 10.20.0.0/24
+
+  Subnet2CIDR:
+    Description: CIDR block for the second subnet
+    Type: String
+    Default: 10.20.1.0/24
+
+  SpokeName:
+    Description: Logical name for the spoke (e.g. Trust1)
+    Type: String
+
+  DeployedByTag:
+    Description: Tag for who deployed the resources
+    Type: String
+    Default: Muaaz
+
+
+Resources:
+  SpokeVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub SpokeVPC-${AWS::StackName}
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref SpokeVPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref Subnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Subnet1
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref SpokeVPC
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Ref Subnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Subnet2
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
+
+  SpokeInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-igw"
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref SpokeVPC
+      InternetGatewayId: !Ref SpokeInternetGateway
