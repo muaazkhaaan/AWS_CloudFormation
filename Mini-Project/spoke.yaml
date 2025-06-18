@@ -25,11 +25,18 @@ Parameters:
     Description: Logical name for the spoke (e.g. Trust1)
     Type: String
 
+  CentralVPCId:
+    Description: The VPC ID of the central network to peer with
+    Type: String
+
+  CentralVPCCIDR:
+    Description: CIDR block of the central VPC
+    Type: String
+
   DeployedByTag:
     Description: Tag for who deployed the resources
     Type: String
     Default: Muaaz
-
 
 Resources:
   SpokeVPC:
@@ -40,7 +47,7 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Sub SpokeVPC-${AWS::StackName}
+          Value: !Sub SpokeVPC-${SpokeName}
         - Key: managed-by
           Value: CloudFormation
         - Key: deployed-by
@@ -81,7 +88,7 @@ Resources:
     Properties:
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-igw"
+          Value: !Sub "${SpokeName}-igw"
         - Key: managed-by
           Value: CloudFormation
         - Key: deployed-by
@@ -99,7 +106,7 @@ Resources:
       VpcId: !Ref SpokeVPC
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-rt"
+          Value: !Sub "${SpokeName}-rt"
         - Key: managed-by
           Value: CloudFormation
         - Key: deployed-by
@@ -113,6 +120,14 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref SpokeInternetGateway
 
+  RouteToCentralVPC:
+    Type: AWS::EC2::Route
+    DependsOn: VPCPeeringConnection
+    Properties:
+      RouteTableId: !Ref SpokeRouteTable
+      DestinationCidrBlock: !Ref CentralVPCCIDR
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+
   PublicSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -125,8 +140,74 @@ Resources:
       SubnetId: !Ref Subnet2
       RouteTableId: !Ref SpokeRouteTable
 
+  SpokeEC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${SpokeName}-EC2Role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  SpokeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref SpokeEC2Role
+
+  SpokeInstance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      SubnetId: !Ref Subnet1
+      ImageId: ami-0b9dd1f70861d4721  # Amazon Linux 2 AMI
+      IamInstanceProfile: !Ref SpokeInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub "${SpokeName}-Instance1"
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
+
+  SpokeInstance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      SubnetId: !Ref Subnet2
+      ImageId: ami-0b9dd1f70861d4721
+      IamInstanceProfile: !Ref SpokeInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub "${SpokeName}-Instance2"
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
+
+  VPCPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !Ref SpokeVPC
+      PeerVpcId: !Ref CentralVPCId
+      Tags:
+        - Key: Name
+          Value: !Sub "${SpokeName}-to-CentralPeering"
+        - Key: managed-by
+          Value: CloudFormation
+        - Key: deployed-by
+          Value: !Ref DeployedByTag
 
 Outputs:
   VPCId:
-    Value: !Ref SpokeVPC
     Description: Spoke VPC ID
+    Value: !Ref SpokeVPC
