@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Global ALB routing to spoke ALBs via DNS redirect
+
+Parameters:
+  Subnet1Id:
+    Type: String
+  Subnet2Id:
+    Type: String
+  GlobalALBSecurityGroup:
+    Type: String
+  Trust1ALBDNS:
+    Type: String
+  Trust2ALBDNS:
+    Type: String
+
+Resources:
+  GlobalALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: global-alb
+      Scheme: internet-facing
+      Subnets:
+        - !Ref Subnet1Id
+        - !Ref Subnet2Id
+      SecurityGroups:
+        - !Ref GlobalALBSecurityGroup
+
+  GlobalListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref GlobalALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            StatusCode: 200
+            ContentType: text/plain
+            MessageBody: "Global ALB active"
+
+  Trust1ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref GlobalListener
+      Priority: 1
+      Conditions:
+        - Field: path-pattern
+          Values: ["/trust1*"]
+      Actions:
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTP
+            Port: "80"
+            Host: !Ref Trust1ALBDNS
+            Path: "/"
+            StatusCode: HTTP_302
+
+  Trust2ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref GlobalListener
+      Priority: 2
+      Conditions:
+        - Field: path-pattern
+          Values: ["/trust2*"]
+      Actions:
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTP
+            Port: "80"
+            Host: !Ref Trust2ALBDNS
+            Path: "/"
+            StatusCode: HTTP_302
+
+Outputs:
+  GlobalALBDNS:
+    Description: DNS of the Global ALB
+    Value: !GetAtt GlobalALB.DNSName

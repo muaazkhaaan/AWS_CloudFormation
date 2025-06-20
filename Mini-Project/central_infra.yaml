@@ -83,7 +83,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [0, !GetAZs '']
+      AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: !Ref Subnet2CIDR
       MapPublicIpOnLaunch: true
       Tags:
@@ -282,6 +282,40 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
+
+  CentralInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Central-IGW
+        - Key: managed-by
+          Value: CloudFormation
+
+  AttachCentralIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref CentralInternetGateway
+
+  CentralRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: CentralRouteTable
+        - Key: managed-by
+          Value: CloudFormation
+
+  CentralDefaultRouteToInternet:
+    Type: AWS::EC2::Route
+    DependsOn: AttachCentralIGW
+    Properties:
+      RouteTableId: !Ref CentralRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref CentralInternetGateway
+
 
 Outputs:
   VPC:
